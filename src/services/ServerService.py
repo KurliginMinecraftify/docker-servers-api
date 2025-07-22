@@ -15,7 +15,9 @@ class ServerService:
 
     async def addServerToDatabase(self, server: ServerCreateSchema) -> ServerModel:
         if await self.serverRepo.getServerByPort(server.port):
-            raise HTTPException(status_code=400, detail="Server with this port already exists")
+            raise HTTPException(
+                status_code=400, detail="Server with this port already exists"
+            )
 
         newServer = ServerModel(
             ip=str(server.ip),
@@ -31,42 +33,41 @@ class ServerService:
             return newServer
         except IntegrityError:
             await self.session.rollback()
-            raise HTTPException(status_code=500, detail="Database error while creating server")
+            raise HTTPException(
+                status_code=500, detail="Database error while creating server"
+            )
 
     async def removeServerFromDatabase(self, uuid: UUID4) -> Response:
         server = await self.serverRepo.getServerByUuid(uuid)
         if not server:
             raise HTTPException(
-                status_code=404,
-                detail=f"Server with UUID `{uuid}` was not found."
+                status_code=404, detail=f"Server with UUID `{uuid}` was not found."
             )
 
         try:
             await self.session.delete(server)
             await self.session.commit()
             return Response(status_code=200)
-        
-        except IntegrityError as e:
+
+        except IntegrityError:
             await self.session.rollback()
             raise HTTPException(
                 status_code=400,
-                detail="Cannot delete server: there are still users linked to it."
+                detail="Cannot delete server: there are still users linked to it.",
             )
 
-        except SQLAlchemyError as e:
+        except SQLAlchemyError:
             await self.session.rollback()
             raise HTTPException(
                 status_code=500,
-                detail="A database error occurred while deleting the server. Please try again later."
+                detail="A database error occurred while deleting the server.",
             )
 
         except Exception as e:
             await self.session.rollback()
             raise HTTPException(
-                status_code=500,
-                detail=f"An unexpected error occurred: {str(e)}"
+                status_code=500, detail=f"An unexpected error occurred: {str(e)}"
             )
 
-__all__ = [
-    "ServerService"
-]
+
+__all__ = ["ServerService"]

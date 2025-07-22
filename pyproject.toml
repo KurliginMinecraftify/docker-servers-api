@@ -25,4 +25,15 @@ build-backend = "poetry.core.masonry.api"
 [tool.poetry.group.dev.dependencies]
 isort = "^6.0.1"
 black = "^25.1.0"
+flake8 = "^7.3.0"
 
+[tool.black]
+line-length = 88
+target-version = ["py312"]
+
+[tool.isort]
+profile = "black"
+line_length = 88
+multi_line_output = 3
+include_trailing_comma = true
+known_first_party = ["src"]

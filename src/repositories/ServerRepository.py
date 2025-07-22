@@ -6,6 +6,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
+from src.exceptions import DatabaseError, ServerCreateError, ServerDeleteError
 from src.models.ServerModel import ServerModel
 
 logger = logging.getLogger(__name__)
@@ -21,8 +22,8 @@ class ServerRepository:
             result = await self.db.execute(query)
             return result.scalars().first()
         except SQLAlchemyError as e:
-            logger.error(f"Error getting server by port {port}: {e}")
-            return None
+            logger.exception(f"Error getting server by port {port}: {e}")
+            raise DatabaseError from e
 
     async def getServerByUuid(self, uuid: UUID4) -> Optional[ServerModel]:
         try:
@@ -30,8 +31,8 @@ class ServerRepository:
             result = await self.db.execute(query)
             return result.scalars().first()
         except SQLAlchemyError as e:
-            logger.error(f"Error getting server by UUID {uuid}: {e}")
-            return None
+            logger.exception(f"Error getting server by UUID {uuid}: {e}")
+            raise DatabaseError from e
 
     async def getAllServers(self) -> Optional[list[ServerModel]]:
         try:
@@ -39,8 +40,8 @@ class ServerRepository:
             result = await self.db.execute(query)
             return result.scalars().all()
         except SQLAlchemyError as e:
-            logger.error(f"Error getting list of all servers: {e}")
-            return []
+            logger.exception(f"Error getting list of all servers: {e}")
+            raise DatabaseError from e
 
     async def createServer(self, data: dict) -> Optional[ServerModel]:
         try:
@@ -51,12 +52,14 @@ class ServerRepository:
             return newServer
         except IntegrityError as e:
             await self.db.rollback()
-            logger.error(f"Error creating server: {e}")
-            return None
+            logger.exception(f"Error creating server: {e}")
+            raise ServerCreateError(
+                "Server creation failed due to integrity error"
+            ) from e
         except SQLAlchemyError as e:
             await self.db.rollback()
-            logger.error(f"Unknown error while creating server: {e}")
-            return None
+            logger.exception(f"Unknown error while creating server: {e}")
+            raise DatabaseError from e
 
     async def deleteServerByUuid(self, uuid: UUID4) -> bool:
         try:
@@ -70,9 +73,11 @@ class ServerRepository:
             return True
         except IntegrityError as e:
             await self.db.rollback()
-            logger.error(f"Error deleting server {uuid}: {e}")
-            return False
+            logger.exception(f"Error deleting server {uuid}: {e}")
+            raise ServerDeleteError(
+                "Server deletion failed due to integrity error"
+            ) from e
         except SQLAlchemyError as e:
             await self.db.rollback()
-            logger.error(f"Unknown error while deleting server {uuid}: {e}")
+            logger.exception(f"Unknown error while deleting server {uuid}: {e}")
             return False

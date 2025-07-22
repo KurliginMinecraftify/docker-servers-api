@@ -11,7 +11,4 @@ class ServerResponseSchema(ServerCreateSchema):
     uuid: UUID4
 
 
-__all__ = [
-    "ServerCreateSchema",
-    "ServerResponseSchema"
-]
+__all__ = ["ServerCreateSchema", "ServerResponseSchema"]
