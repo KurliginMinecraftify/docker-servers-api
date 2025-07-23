@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.models.ServerModel import ServerModel
 from src.repositories.ServerRepository import ServerRepository
 from src.schemas.pydantic.ServerSchema import ServerCreateSchema
+from src.utils import generate_password
 
 
 class ServerService:
@@ -14,14 +15,16 @@ class ServerService:
         self.serverRepo = ServerRepository(session)
 
     async def addServerToDatabase(self, server: ServerCreateSchema) -> ServerModel:
-        if await self.serverRepo.getServerByPort(server.port):
-            raise HTTPException(
-                status_code=400, detail="Server with this port already exists"
-            )
+        used_ports = await self.serverRepo.getAllServersPorts()
+        all_ports = [(i, i + 100) for i in range(25500, 25600)]
+        free_ports = list(set(used_ports).symmetric_difference(all_ports))
+
+        port, rcon_port = free_ports[0]
 
         newServer = ServerModel(
-            ip=str(server.ip),
-            port=server.port,
+            port=port,
+            rcon_port=rcon_port,
+            rcon_password=generate_password(10),
             version=server.version,
         )
 

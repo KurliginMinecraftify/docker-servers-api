@@ -1,14 +1,19 @@
-from pydantic import UUID4, BaseModel, IPvAnyAddress
+from pydantic import UUID4, BaseModel
 
 
 class ServerCreateSchema(BaseModel):
-    ip: IPvAnyAddress
-    port: int
     version: str
 
 
-class ServerResponseSchema(ServerCreateSchema):
+class ServerActivationSchema(BaseModel):
     uuid: UUID4
 
 
-__all__ = ["ServerCreateSchema", "ServerResponseSchema"]
+class ServerResponseSchema(ServerCreateSchema):
+    port: int
+    rcon_port: int
+    rcon_password: str
+    uuid: UUID4
+
+
+__all__ = ["ServerCreateSchema", "ServerResponseSchema", "ServerActivationSchema"]

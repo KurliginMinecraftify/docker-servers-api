@@ -43,6 +43,17 @@ class ServerRepository:
             logger.exception(f"Error getting list of all servers: {e}")
             raise DatabaseError from e
 
+    async def getAllServersPorts(self) -> Optional[list[(int, int)]]:
+        try:
+            query = select(ServerModel)
+            result = await self.db.execute(query)
+            return [
+                (result.port, result.rcon_port) for result in result.scalars().all()
+            ]
+        except SQLAlchemyError as e:
+            logger.exception(f"Error getting all servers ports: {e}")
+            raise DatabaseError from e
+
     async def createServer(self, data: dict) -> Optional[ServerModel]:
         try:
             newServer = ServerModel(**data)

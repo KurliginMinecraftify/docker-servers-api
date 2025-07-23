@@ -24,6 +24,11 @@ services:
       retries: 3
       start_period: 10s
 
+    volumes:
+      - ./servers:/app/servers
+      - /var/run/docker.sock:/var/run/docker.sock
+
 networks:
   shared-network:
+    name: shared-network
     external: true

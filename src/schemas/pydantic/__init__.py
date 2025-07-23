@@ -1,6 +1,7 @@
-from .ServerSchema import ServerCreateSchema, ServerResponseSchema
+from .ServerSchema import (
+    ServerActivationSchema,
+    ServerCreateSchema,
+    ServerResponseSchema,
+)
 
-__all__ = [
-    "ServerCreateSchema",
-    "ServerResponseSchema",
-]
+__all__ = ["ServerCreateSchema", "ServerResponseSchema", "ServerActivationSchema"]

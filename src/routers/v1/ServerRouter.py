@@ -6,13 +6,22 @@ from pydantic import UUID4
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database.database import getSession
+from src.docker.manager import ServerManager, getManager
 from src.exceptions.DatabaseExceptions import (
     DatabaseError,
     ServerCreateError,
     ServerDeleteError,
 )
+from src.exceptions.DockerExceptions import (
+    ServerStartError,
+    ServerStopError,
+)
 from src.repositories.ServerRepository import ServerRepository
-from src.schemas.pydantic import ServerCreateSchema, ServerResponseSchema
+from src.schemas.pydantic import (
+    ServerActivationSchema,
+    ServerCreateSchema,
+    ServerResponseSchema,
+)
 from src.services import ServerService
 
 logger = logging.getLogger(__name__)
@@ -56,10 +65,19 @@ async def getAllServers(session: AsyncSession = Depends(getSession)):
 async def addServer(
     server: Annotated[ServerCreateSchema, Depends()],
     session: AsyncSession = Depends(getSession),
+    serverManager: ServerManager = Depends(getManager),
 ):
     try:
         service = ServerService(session)
         newServer = await service.addServerToDatabase(server)
+
+        await serverManager.create_server(
+            uuid=newServer.uuid,
+            port=newServer.port,
+            rcon_port=newServer.rcon_port,
+            rcon_password=newServer.rcon_password,
+            version=server.version,
+        )
         return newServer
     except ServerCreateError as e:
         logger.error(f"Integrity error while adding server: {e}")
@@ -69,11 +87,43 @@ async def addServer(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
+@serverRouter.post("/start", response_model=ServerResponseSchema, status_code=201)
+async def startServer(
+    server: Annotated[ServerActivationSchema, Depends()],
+    serverManager: ServerManager = Depends(getManager),
+):
+    try:
+        await serverManager.start_server(uuid=server.uuid)
+        return Response(status_code=201)
+    except ServerStartError as e:
+        logger.error(f"Integrity error while starting server: {e}")
+        raise HTTPException(status_code=400, detail="Server already strated")
+
+
+@serverRouter.post("/stop", response_model=ServerResponseSchema, status_code=201)
+async def stopServer(
+    server: Annotated[ServerActivationSchema, Depends()],
+    serverManager: ServerManager = Depends(getManager),
+):
+    try:
+        await serverManager.stop_server(uuid=server.uuid)
+        return Response(status_code=201)
+    except ServerStopError as e:
+        logger.error(f"Integrity error while stopping server: {e}")
+        raise HTTPException(status_code=400, detail="Server already stopped")
+
+
 @serverRouter.delete("/{uuid}")
-async def deleteServer(uuid: UUID4, session: AsyncSession = Depends(getSession)):
+async def deleteServer(
+    uuid: UUID4,
+    session: AsyncSession = Depends(getSession),
+    serverManager: ServerManager = Depends(getManager),
+):
     try:
         service = ServerService(session)
         deletion = await service.removeServerFromDatabase(uuid)
+
+        await serverManager.remove_server(uuid=str(uuid))
 
         if not deletion:
             logger.warning(f"Server with UUID {uuid} not found")

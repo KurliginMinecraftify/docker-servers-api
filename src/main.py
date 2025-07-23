@@ -1,9 +1,12 @@
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
 from src.database.database import createTables, dropTables
 from src.routers.v1.ServerRouter import serverRouter
+
+logging.basicConfig(level=logging.INFO)
 
 
 @asynccontextmanager

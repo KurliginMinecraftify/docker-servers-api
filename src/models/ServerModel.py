@@ -13,8 +13,9 @@ class ServerModel(Base):
     uuid: Mapped[UUID] = mapped_column(
         UUID(as_uuid=True), default=uuid.uuid4, unique=True, nullable=False
     )
-    ip: Mapped[str] = mapped_column(String, nullable=False)
     port: Mapped[int] = mapped_column(Integer, unique=True, nullable=False)
+    rcon_port: Mapped[int] = mapped_column(Integer, unique=True, nullable=True)
+    rcon_password: Mapped[str] = mapped_column(String, nullable=False)
     version: Mapped[str] = mapped_column(String, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=func.now(), nullable=False
