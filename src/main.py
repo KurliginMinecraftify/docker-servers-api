@@ -1,4 +1,3 @@
-import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -6,12 +5,14 @@ from fastapi import FastAPI
 from src.database.database import createTables, dropTables
 from src.routers.v1.ServerRouter import serverRouter
 
-logging.basicConfig(level=logging.INFO)
+from .logging import configure_logging
+
+configure_logging()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # await dropTables()
+    await dropTables()
     await createTables()
     yield
 

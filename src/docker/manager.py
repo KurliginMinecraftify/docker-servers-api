@@ -81,7 +81,7 @@ class ServerManager:
             await container.start()
             return container
         except DockerError as e:
-            raise ServerStartError(f"Failed to start server '{uuid}'") from e
+            raise ServerStartError(f"Failed to start server '{uuid}'. {e}") from e
 
     async def stop_server(self, uuid: str) -> None:
         try:

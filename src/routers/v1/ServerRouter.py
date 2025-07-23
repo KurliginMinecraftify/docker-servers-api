@@ -13,6 +13,7 @@ from src.exceptions.DatabaseExceptions import (
     ServerDeleteError,
 )
 from src.exceptions.DockerExceptions import (
+    ServerManagerError,
     ServerStartError,
     ServerStopError,
 )
@@ -85,6 +86,9 @@ async def addServer(
     except DatabaseError as e:
         logger.error(f"Database error while adding server: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
+    except ServerManagerError as e:
+        logger.error(f"Server manager error while adding server: {e}")
+        raise HTTPException(status_code=500, detail="Server manager error")
 
 
 @serverRouter.post("/start", response_model=ServerResponseSchema, status_code=201)
@@ -96,8 +100,8 @@ async def startServer(
         await serverManager.start_server(uuid=server.uuid)
         return Response(status_code=201)
     except ServerStartError as e:
-        logger.error(f"Integrity error while starting server: {e}")
-        raise HTTPException(status_code=400, detail="Server already strated")
+        logger.error(f"Server manager error while starting server: {e}")
+        raise HTTPException(status_code=500, detail="Server manager error")
 
 
 @serverRouter.post("/stop", response_model=ServerResponseSchema, status_code=201)
@@ -110,7 +114,7 @@ async def stopServer(
         return Response(status_code=201)
     except ServerStopError as e:
         logger.error(f"Integrity error while stopping server: {e}")
-        raise HTTPException(status_code=400, detail="Server already stopped")
+        raise HTTPException(status_code=500, detail="Server manager error")
 
 
 @serverRouter.delete("/{uuid}")
@@ -132,7 +136,7 @@ async def deleteServer(
         return Response(status_code=204)
     except ServerDeleteError as e:
         logger.error(f"Integrity error while deleting server: {e}")
-        raise HTTPException(status_code=400, detail="Server does not exists")
+        raise HTTPException(status_code=500, detail="Server manager error")
     except DatabaseError as e:
         logger.error(f"Database error while deleting server {uuid}: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
