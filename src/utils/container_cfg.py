@@ -15,6 +15,7 @@ def get_container_config(
             "ENABLE_RCON=true",
             f"RCON_PASSWORD={rcon_password}",
             f"VERSION={version}",
+            "OVERRIDE_SERVER_PROPERTIES=FALSE",
         ],
         "HostConfig": {
             "Binds": [f"{server_dir}:/data"],

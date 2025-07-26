@@ -14,7 +14,7 @@ class ServerService:
         self.session = session
         self.serverRepo = ServerRepository(session)
 
-    async def addServerToDatabase(self, server: ServerCreateSchema) -> ServerModel:
+    async def addServer(self, server: ServerCreateSchema) -> ServerModel:
         used_ports = await self.serverRepo.getAllServersPorts()
         all_ports = [(i, i + 100) for i in range(25500, 25600)]
         free_ports = list(set(used_ports).symmetric_difference(all_ports))
@@ -40,7 +40,7 @@ class ServerService:
                 status_code=500, detail="Database error while creating server"
             )
 
-    async def removeServerFromDatabase(self, uuid: UUID4) -> Response:
+    async def removeServer(self, uuid: UUID4) -> Response:
         server = await self.serverRepo.getServerByUuid(uuid)
         if not server:
             raise HTTPException(

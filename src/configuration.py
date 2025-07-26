@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     POSTGRES_USERNAME: str = Field(..., env="POSTGRES_USERNAME")
     POSTGRES_DB: str = Field(..., env="POSTGRES_DB")
 
+    SERVERS_DIR: str = Field("servers", env="SERVERS_DIR")
+    BASE_DIR: str = Field(..., env="BASE_DIR")
+
     def get_db_url(self) -> str:
         return URL.create(
             drivername="postgresql+asyncpg",

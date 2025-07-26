@@ -16,4 +16,8 @@ class ServerResponseSchema(ServerCreateSchema):
     uuid: UUID4
 
 
+class UserServerResponseSchema(ServerCreateSchema):
+    port: int
+
+
 __all__ = ["ServerCreateSchema", "ServerResponseSchema", "ServerActivationSchema"]

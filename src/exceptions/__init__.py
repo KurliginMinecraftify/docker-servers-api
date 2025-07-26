@@ -1,10 +1,12 @@
-from .DatabaseExceptions import DatabaseError, ServerCreateError, ServerDeleteError
+from .DatabaseExceptions import DatabaseError, ServerCreateError
 from .DockerExceptions import (
     ImageNotFoundError,
     NoAvailablePortError,
     ServerAlreadyExistsError,
+    ServerDeleteError,
     ServerManagerError,
     ServerNotFoundError,
+    ServerRestartError,
     ServerStartError,
     ServerStopError,
 )
@@ -20,4 +22,5 @@ __all__ = [
     "ServerStopError",
     "ImageNotFoundError",
     "NoAvailablePortError",
+    "ServerRestartError",
 ]

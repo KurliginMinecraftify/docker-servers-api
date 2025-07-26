@@ -1,4 +1,5 @@
 import logging
+from functools import wraps
 from typing import Annotated, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Response
@@ -6,7 +7,6 @@ from pydantic import UUID4
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database.database import getSession
-from src.docker.manager import ServerManager, getManager
 from src.exceptions.DatabaseExceptions import (
     DatabaseError,
     ServerCreateError,
@@ -14,15 +14,16 @@ from src.exceptions.DatabaseExceptions import (
 )
 from src.exceptions.DockerExceptions import (
     ServerManagerError,
+    ServerRestartError,
     ServerStartError,
     ServerStopError,
 )
 from src.repositories.ServerRepository import ServerRepository
 from src.schemas.pydantic import (
-    ServerActivationSchema,
     ServerCreateSchema,
     ServerResponseSchema,
 )
+from src.server.manager import ServerManager, getManager
 from src.services import ServerService
 
 logger = logging.getLogger(__name__)
@@ -30,39 +31,49 @@ logger = logging.getLogger(__name__)
 serverRouter = APIRouter(prefix="/v1/servers", tags=["Servers"])
 
 
+def handle_db_and_manager_errors(func):
+    @wraps(func)
+    async def wrapper(*args, **kwargs):
+        try:
+            return await func(*args, **kwargs)
+        except DatabaseError as e:
+            logger.error(f"Database error: {e}")
+            raise HTTPException(status_code=500, detail="Internal server error")
+        except ServerManagerError as e:
+            logger.error(f"Server manager error: {e}")
+            raise HTTPException(status_code=500, detail="Server manager error")
+
+    return wrapper
+
+
 @serverRouter.get("/{uuid}", response_model=Optional[ServerResponseSchema])
+@handle_db_and_manager_errors
 async def getServerByUuid(uuid: UUID4, session: AsyncSession = Depends(getSession)):
-    try:
-        serverRepo = ServerRepository(session)
-        server = await serverRepo.getServerByUuid(uuid)
+    serverRepo = ServerRepository(session)
+    server = await serverRepo.getServerByUuid(uuid)
 
-        if server is None:
-            logger.warning(f"Server with UUID {uuid} not found")
-            raise HTTPException(status_code=404, detail="Server not found")
+    if server is None:
+        logger.warning(f"Server with UUID {uuid} not found")
+        raise HTTPException(status_code=404, detail="Server not found")
 
-        return server
-    except DatabaseError as e:
-        logger.error(f"Database error while retrieving server {uuid}: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+    return server
 
 
 @serverRouter.get("/", response_model=List[ServerResponseSchema])
+@handle_db_and_manager_errors
 async def getAllServers(session: AsyncSession = Depends(getSession)):
-    try:
-        serverRepo = ServerRepository(session)
-        servers = await serverRepo.getAllServers()
+    serverRepo = ServerRepository(session)
+    servers = await serverRepo.getAllServers()
 
-        if not servers:
-            logger.warning("No servers found")
-            raise HTTPException(status_code=404, detail="No servers found")
+    if not servers:
+        logger.warning("No servers found")
+        raise HTTPException(status_code=404, detail="No servers found")
 
-        return servers
-    except DatabaseError as e:
-        logger.error(f"Database error while retrieving all servers: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+    return servers
 
 
 @serverRouter.post("/", response_model=ServerResponseSchema, status_code=201)
+@handle_db_and_manager_errors
 async def addServer(
     server: Annotated[ServerCreateSchema, Depends()],
     session: AsyncSession = Depends(getSession),
@@ -70,7 +81,7 @@ async def addServer(
 ):
     try:
         service = ServerService(session)
-        newServer = await service.addServerToDatabase(server)
+        newServer = await service.addServer(server)
 
         await serverManager.create_server(
             uuid=newServer.uuid,
@@ -83,20 +94,31 @@ async def addServer(
     except ServerCreateError as e:
         logger.error(f"Integrity error while adding server: {e}")
         raise HTTPException(status_code=400, detail="Server already exists")
-    except DatabaseError as e:
-        logger.error(f"Database error while adding server: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
-    except ServerManagerError as e:
-        logger.error(f"Server manager error while adding server: {e}")
-        raise HTTPException(status_code=500, detail="Server manager error")
 
 
-@serverRouter.post("/start", response_model=ServerResponseSchema, status_code=201)
+@serverRouter.post(
+    "/{uuid}/start",
+    status_code=201,
+    responses={
+        201: {"description": "Server started successfully"},
+        404: {"description": "Server not found"},
+        500: {"description": "Server manager error"},
+    },
+)
+@handle_db_and_manager_errors
 async def startServer(
-    server: Annotated[ServerActivationSchema, Depends()],
+    uuid: UUID4,
+    session: AsyncSession = Depends(getSession),
     serverManager: ServerManager = Depends(getManager),
 ):
     try:
+        service = ServerRepository(session)
+        server = await service.getServerByUuid(uuid)
+
+        if not server:
+            logger.error("Server not found")
+            raise HTTPException(status_code=404, detail="Server not found")
+
         await serverManager.start_server(uuid=server.uuid)
         return Response(status_code=201)
     except ServerStartError as e:
@@ -104,20 +126,77 @@ async def startServer(
         raise HTTPException(status_code=500, detail="Server manager error")
 
 
-@serverRouter.post("/stop", response_model=ServerResponseSchema, status_code=201)
-async def stopServer(
-    server: Annotated[ServerActivationSchema, Depends()],
+@serverRouter.post(
+    "/{uuid}/restart",
+    status_code=201,
+    responses={
+        201: {"description": "Server restarted successfully"},
+        404: {"description": "Server not found"},
+        500: {"description": "Server manager error"},
+    },
+)
+@handle_db_and_manager_errors
+async def restartServer(
+    uuid: UUID4,
+    session: AsyncSession = Depends(getSession),
     serverManager: ServerManager = Depends(getManager),
 ):
     try:
+        service = ServerRepository(session)
+        server = await service.getServerByUuid(uuid)
+
+        if not server:
+            logger.error("Server not found")
+            raise HTTPException(status_code=404, detail="Server not found")
+
+        await serverManager.restart_server(uuid=server.uuid)
+        return Response(status_code=201)
+    except ServerRestartError as e:
+        logger.error(f"Server manager error while starting server: {e}")
+        raise HTTPException(status_code=500, detail="Server manager error")
+
+
+@serverRouter.post(
+    "/{uuid}/stop",
+    status_code=201,
+    responses={
+        201: {"description": "Server stopped successfully"},
+        404: {"description": "Server not found"},
+        500: {"description": "Server manager error"},
+    },
+)
+@handle_db_and_manager_errors
+async def stopServer(
+    uuid: UUID4,
+    session: AsyncSession = Depends(getSession),
+    serverManager: ServerManager = Depends(getManager),
+):
+    try:
+        service = ServerRepository(session)
+        server = await service.getServerByUuid(uuid)
+
+        if not server:
+            logger.error("Server not found")
+            raise HTTPException(status_code=404, detail="Server not found")
+
         await serverManager.stop_server(uuid=server.uuid)
+
         return Response(status_code=201)
     except ServerStopError as e:
         logger.error(f"Integrity error while stopping server: {e}")
         raise HTTPException(status_code=500, detail="Server manager error")
 
 
-@serverRouter.delete("/{uuid}")
+@serverRouter.delete(
+    "/{uuid}/delete",
+    status_code=204,
+    responses={
+        204: {"description": "Server deleted successfully"},
+        404: {"description": "Server not found"},
+        500: {"description": "Server manager error"},
+    },
+)
+@handle_db_and_manager_errors
 async def deleteServer(
     uuid: UUID4,
     session: AsyncSession = Depends(getSession),
@@ -125,21 +204,19 @@ async def deleteServer(
 ):
     try:
         service = ServerService(session)
-        deletion = await service.removeServerFromDatabase(uuid)
+        server = await service.get_by_uuid(uuid)
 
-        await serverManager.remove_server(uuid=str(uuid))
-
-        if not deletion:
+        if not server:
             logger.warning(f"Server with UUID {uuid} not found")
             raise HTTPException(status_code=404, detail="Server not found")
+
+        await serverManager.remove_server(uuid=str(uuid))
+        await service.removeServer(uuid)
 
         return Response(status_code=204)
     except ServerDeleteError as e:
         logger.error(f"Integrity error while deleting server: {e}")
         raise HTTPException(status_code=500, detail="Server manager error")
-    except DatabaseError as e:
-        logger.error(f"Database error while deleting server {uuid}: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 __all__ = ["serverRouter"]
