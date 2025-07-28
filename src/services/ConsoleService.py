@@ -18,8 +18,6 @@ class ConsoleService:
             await self.server.execute_command(command, query)
         except HTTPException as e:
             raise e
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=str(e))
 
 
 __all__ = ["ConsoleService"]

@@ -60,6 +60,9 @@ async def updateProperties(
         await update_properties(uuid, command.model_dump())
 
         return Response(status_code=200)
+    except DatabaseError as e:
+        logger.error(f"Database error while running command: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
     except Exception as e:
         logger.error(f"Error while updating properties: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")

@@ -46,7 +46,7 @@ def handle_db_and_manager_errors(func):
     return wrapper
 
 
-@serverRouter.get("/{uuid}", response_model=Optional[ServerResponseSchema])
+@serverRouter.get("/{uuid}", summary="Get server by uuid", response_model=Optional[ServerResponseSchema])
 @handle_db_and_manager_errors
 async def getServerByUuid(uuid: UUID4, session: AsyncSession = Depends(getSession)):
     serverRepo = ServerRepository(session)
@@ -59,7 +59,7 @@ async def getServerByUuid(uuid: UUID4, session: AsyncSession = Depends(getSessio
     return server
 
 
-@serverRouter.get("/", response_model=List[ServerResponseSchema])
+@serverRouter.get("/", summary="Get all servers", response_model=List[ServerResponseSchema])
 @handle_db_and_manager_errors
 async def getAllServers(session: AsyncSession = Depends(getSession)):
     serverRepo = ServerRepository(session)
@@ -72,7 +72,7 @@ async def getAllServers(session: AsyncSession = Depends(getSession)):
     return servers
 
 
-@serverRouter.post("/", response_model=ServerResponseSchema, status_code=201)
+@serverRouter.post("/", summary="Add server", response_model=ServerResponseSchema, status_code=201)
 @handle_db_and_manager_errors
 async def addServer(
     server: Annotated[ServerCreateSchema, Depends()],
@@ -98,6 +98,7 @@ async def addServer(
 
 @serverRouter.post(
     "/{uuid}/start",
+    summary="Start server",
     status_code=201,
     responses={
         201: {"description": "Server started successfully"},
@@ -128,6 +129,7 @@ async def startServer(
 
 @serverRouter.post(
     "/{uuid}/restart",
+    summary="Restart server",
     status_code=201,
     responses={
         201: {"description": "Server restarted successfully"},
@@ -158,6 +160,7 @@ async def restartServer(
 
 @serverRouter.post(
     "/{uuid}/stop",
+    summary="Stop server",
     status_code=201,
     responses={
         201: {"description": "Server stopped successfully"},
@@ -189,6 +192,7 @@ async def stopServer(
 
 @serverRouter.delete(
     "/{uuid}/delete",
+    summary="Delete server",
     status_code=204,
     responses={
         204: {"description": "Server deleted successfully"},
