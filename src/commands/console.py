@@ -1,7 +1,6 @@
 import asyncio
 import concurrent.futures
 
-from fastapi import HTTPException
 from mcrcon import MCRcon
 
 from .models import CommandURLChoice
@@ -25,7 +24,4 @@ class ConsoleManager:
             return await loop.run_in_executor(executor, self.sync_rcon, command)
 
     async def execute_command(self, command: CommandURLChoice, query: str):
-        try:
-            await self.send_rcon_command(f"{command.value} {query}")
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=str(e))
+        await self.send_rcon_command(f"{command.value} {query}")

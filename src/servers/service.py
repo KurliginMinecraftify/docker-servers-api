@@ -1,6 +1,5 @@
 from fastapi import HTTPException, Response
 from pydantic import UUID4
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.configuration import getSettings
@@ -43,14 +42,3 @@ class ServerService:
         await self.session.refresh(newServer)
 
         return newServer
-
-    async def removeServer(self, uuid: UUID4) -> Response:
-        server = await self.serverRepo.getServerByUuid(uuid)
-        if not server:
-            raise HTTPException(
-                status_code=404, detail=f"Server with UUID `{uuid}` was not found."
-            )
-
-        await self.session.delete(server)
-        await self.session.commit()
-        return Response(status_code=200)

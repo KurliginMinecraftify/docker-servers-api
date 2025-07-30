@@ -64,9 +64,7 @@ class ServerRepository:
         except IntegrityError as e:
             await self.db.rollback()
             logger.exception(f"Error creating server: {e}")
-            raise ContainerCreateError(
-                "Server creation failed due to integrity error"
-            ) from e
+            raise DatabaseError("Server creation failed due to integrity error") from e
         except SQLAlchemyError as e:
             await self.db.rollback()
             logger.exception(f"Unknown error while creating server: {e}")
@@ -85,10 +83,8 @@ class ServerRepository:
         except IntegrityError as e:
             await self.db.rollback()
             logger.exception(f"Error deleting server {uuid}: {e}")
-            raise ContainerDeleteError(
-                "Server deletion failed due to integrity error"
-            ) from e
+            raise DatabaseError("Server deletion failed due to integrity error") from e
         except SQLAlchemyError as e:
             await self.db.rollback()
             logger.exception(f"Unknown error while deleting server {uuid}: {e}")
-            return False
+            raise DatabaseError from e

@@ -1,4 +1,5 @@
 from fastapi import HTTPException
+import socket
 
 from src.entities import ServerModel
 
@@ -17,5 +18,11 @@ class ConsoleService:
     async def run_command(self, command: CommandChoices, query: str) -> None:
         try:
             await self.server.execute_command(command, query)
+        except ConnectionRefusedError as e:
+            raise HTTPException(status_code=503, detail="RCON connection refused") from e
+        except socket.timeout as e:
+            raise HTTPException(status_code=504, detail="RCON connection timed out") from e
+        except Exception as e:
+            raise HTTPException(status_code=500, detail="Unexpected server error") from e
         except HTTPException as e:
             raise e

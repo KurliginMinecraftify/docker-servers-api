@@ -1,4 +1,5 @@
 import logging
+from functools import wraps
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
@@ -20,50 +21,61 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/v1/commands", tags=["Commands"])
 
 
-@router.post("/{uuid}/runCommand", status_code=201)
+def errorHandler(func):
+    @wraps(func)
+    async def wrapper(*args, **kwargs):
+        try:
+            return await func(*args, **kwargs)
+        except DatabaseError as e:
+            logger.error(f"Database error: {e}")
+            raise HTTPException(status_code=500, detail="Internal server error")
+
+    return wrapper
+
+
+@errorHandler
+@router.post(
+    "/{uuid}/runCommand", 
+    summary="Send RCON command to minecraft server",
+    status_code=201
+)
 async def runCommand(
     uuid: UUID4,
     command: Annotated[CommandChoices, Depends()],
     query: str | None = Query(description="Player nickname or message to send"),
     session: AsyncSession = Depends(getDBSession),
 ):
-    try:
-        serverRepo = ServerRepository(session)
-        server = await serverRepo.getServerByUuid(uuid)
+    serverRepo = ServerRepository(session)
+    server = await serverRepo.getServerByUuid(uuid)
 
-        if not server:
-            logger.error("Server not found")
-            raise HTTPException(status_code=404, detail="Server not found")
+    if not server:
+        logger.error("Server not found")
+        raise HTTPException(status_code=404, detail="Server not found")
 
-        consoleService = ConsoleService(server)
-        await consoleService.run_command(command.command, query)
+    consoleService = ConsoleService(server)
+    await consoleService.run_command(command.command, query)
 
-        return Response(status_code=201)
-    except DatabaseError as e:
-        logger.error(f"Database error while running command: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+    return Response(status_code=201)
 
 
-@router.patch("/{uuid}/updateProperties", status_code=200)
+@errorHandler
+@router.patch(
+    "/{uuid}/updateProperties", 
+    summary="Update server properties file",
+    status_code=200
+)
 async def updateProperties(
     uuid: UUID4,
     command: Annotated[ServerPropertiesPatch, Depends()],
     session: AsyncSession = Depends(getDBSession),
 ):
-    try:
-        serverRepo = ServerRepository(session)
-        server = await serverRepo.getServerByUuid(uuid)
+    serverRepo = ServerRepository(session)
+    server = await serverRepo.getServerByUuid(uuid)
 
-        if not server:
-            logger.error("Server not found")
-            raise HTTPException(status_code=404, detail="Server not found")
+    if not server:
+        logger.error("Server not found")
+        raise HTTPException(status_code=404, detail="Server not found")
 
-        update_properties(uuid, command.model_dump())
+    update_properties(uuid, command.model_dump())
 
-        return Response(status_code=200)
-    except DatabaseError as e:
-        logger.error(f"Database error while running command: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
-    except Exception as e:
-        logger.error(f"Error while updating properties: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+    return Response(status_code=200)
