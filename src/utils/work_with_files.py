@@ -12,25 +12,25 @@ base_dir = Path(settings.BASE_DIR).resolve()
 template_path = base_dir / "static" / "server.properties.template"
 
 
-async def ensure_server_dir(server_name: str) -> Path:
+def ensure_server_dir(server_name: str) -> Path:
     server_path = server_dir / server_name
     server_path.mkdir(parents=True, exist_ok=True)
     return server_path
 
 
-async def remove_server_dir(server_name: str) -> None:
+def remove_server_dir(server_name: str) -> None:
     server_path = server_dir / server_name
     if server_path.exists():
         shutil.rmtree(server_path)
 
 
-async def create_properties_from_template(server_name: str, rcon_password: str) -> None:
-    server_path = await ensure_server_dir(server_name)
+def create_properties_from_template(server_name: str, rcon_password: str) -> None:
+    server_path = ensure_server_dir(server_name)
     output_path = server_path / "server.properties"
 
     shutil.copy(template_path, output_path)
 
-    await update_properties(
+    update_properties(
         server_name,
         {
             "rcon.password": rcon_password,
@@ -38,8 +38,8 @@ async def create_properties_from_template(server_name: str, rcon_password: str) 
     )
 
 
-async def update_properties(server_name, config_values: dict) -> None:
-    server_path = await ensure_server_dir(str(server_name))
+def update_properties(server_name, config_values: dict) -> None:
+    server_path = ensure_server_dir(str(server_name))
     properties_path = server_path / "server.properties"
 
     with properties_path.open("rb") as f:

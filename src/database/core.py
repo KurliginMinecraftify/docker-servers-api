@@ -1,19 +1,21 @@
 import logging
+from typing import Annotated
 
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from fastapi import Depends
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from src.configuration import getSettings
 from src.database.base import Base
+
+logger = logging.getLogger(__name__)
 
 settings = getSettings()
 
 engine = create_async_engine(settings.get_db_url(), echo=False)
 async_session = async_sessionmaker(engine, expire_on_commit=False)
 
-logger = logging.getLogger(__name__)
 
-
-async def getSession():
+async def getDBSession():
     async with async_session() as session:
         yield session
 

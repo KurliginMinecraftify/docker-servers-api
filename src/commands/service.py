@@ -1,8 +1,9 @@
 from fastapi import HTTPException
 
-from src.models.ServerModel import ServerModel
-from src.schemas.pydantic import CommandChoices
-from src.server.console import ConsoleManager
+from src.entities import ServerModel
+
+from .console import ConsoleManager
+from .models import CommandChoices
 
 
 class ConsoleService:
@@ -18,6 +19,3 @@ class ConsoleService:
             await self.server.execute_command(command, query)
         except HTTPException as e:
             raise e
-
-
-__all__ = ["ConsoleService"]

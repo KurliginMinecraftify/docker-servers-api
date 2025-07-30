@@ -3,13 +3,12 @@ from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from fastapi import FastAPI
 
-from src.database.database import createTables, dropTables
-from src.routers.v1.CommandRouter import commandRouter
-from src.routers.v1.ServerRouter import serverRouter
+from src.database import createTables, dropTables
 
-from .logging import configure_logging
+from .api import register_routes
+from .logging import LogLevels, configure_logging
 
-configure_logging()
+configure_logging(LogLevels.info)
 
 load_dotenv()
 
@@ -29,5 +28,4 @@ async def health():
     return {"status": "ok"}
 
 
-app.include_router(serverRouter)
-app.include_router(commandRouter)
+register_routes(app)

@@ -4,7 +4,7 @@ import concurrent.futures
 from fastapi import HTTPException
 from mcrcon import MCRcon
 
-from src.schemas.pydantic import CommandURLChoice
+from .models import CommandURLChoice
 
 
 class ConsoleManager:
@@ -29,6 +29,3 @@ class ConsoleManager:
             await self.send_rcon_command(f"{command.value} {query}")
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
-
-
-__all__ = ["ConsoleManager"]

@@ -6,8 +6,8 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from src.exceptions import DatabaseError, ServerCreateError, ServerDeleteError
-from src.models.ServerModel import ServerModel
+from src.entities import ServerModel
+from src.exceptions import ContainerCreateError, ContainerDeleteError, DatabaseError
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +64,7 @@ class ServerRepository:
         except IntegrityError as e:
             await self.db.rollback()
             logger.exception(f"Error creating server: {e}")
-            raise ServerCreateError(
+            raise ContainerCreateError(
                 "Server creation failed due to integrity error"
             ) from e
         except SQLAlchemyError as e:
@@ -85,7 +85,7 @@ class ServerRepository:
         except IntegrityError as e:
             await self.db.rollback()
             logger.exception(f"Error deleting server {uuid}: {e}")
-            raise ServerDeleteError(
+            raise ContainerDeleteError(
                 "Server deletion failed due to integrity error"
             ) from e
         except SQLAlchemyError as e:

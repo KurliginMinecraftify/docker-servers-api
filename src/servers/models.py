@@ -14,10 +14,3 @@ class ServerResponseSchema(ServerCreateSchema):
     rcon_port: int
     rcon_password: str
     uuid: UUID4
-
-
-class UserServerResponseSchema(ServerCreateSchema):
-    port: int
-
-
-__all__ = ["ServerCreateSchema", "ServerResponseSchema", "ServerActivationSchema"]

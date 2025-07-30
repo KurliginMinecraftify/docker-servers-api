@@ -15,6 +15,11 @@ class Settings(BaseSettings):
     SERVERS_DIR: str = Field("servers", env="SERVERS_DIR")
     BASE_DIR: str = Field(..., env="BASE_DIR")
 
+    DOCKER_PATH: str = Field(..., env="DOCKER_PATH")
+
+    MINECRAFT_SERVER_MIN_PORT: int = Field(..., env="MINECRAFT_SERVER_MIN_PORT")
+    MINECRAFT_SERVER_MAX_PORT: int = Field(..., env="MINECRAFT_SERVER_MAX_PORT")
+
     def get_db_url(self) -> str:
         return URL.create(
             drivername="postgresql+asyncpg",
