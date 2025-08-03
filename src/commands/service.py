@@ -10,7 +10,7 @@ from .models import CommandChoices
 class ConsoleService:
     def __init__(self, server: ServerModel):
         self.server = ConsoleManager(
-            rcon_host="0.0.0.0",
+            rcon_host="localhost",
             rcon_port=server.rcon_port,
             rcon_password=server.rcon_password,
         )

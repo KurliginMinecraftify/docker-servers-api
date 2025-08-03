@@ -42,7 +42,7 @@ def errorHandler(func):
 async def runCommand(
     uuid: UUID4,
     command: Annotated[CommandChoices, Depends()],
-    query: str | None = Query(description="Player nickname or message to send"),
+    query: str = Query(description="Player nickname or message to send"),
     session: AsyncSession = Depends(getDBSession),
 ):
     serverRepo = ServerRepository(session)
@@ -76,6 +76,6 @@ async def updateProperties(
         logger.error("Server not found")
         raise HTTPException(status_code=404, detail="Server not found")
 
-    update_properties(uuid, command.model_dump())
+    update_properties(uuid, command.model_dump(mode="json"))
 
     return Response(status_code=200)

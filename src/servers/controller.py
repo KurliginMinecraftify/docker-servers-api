@@ -1,8 +1,9 @@
 import logging
 from functools import wraps
 from typing import Annotated, List, Optional
+import traceback
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Response, Query
 from pydantic import UUID4
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -37,7 +38,7 @@ def errorHandler(func):
         try:
             return await func(*args, **kwargs)
         except DatabaseError as e:
-            logger.error(f"Database error: {e}")
+            logger.error("Database error: %s\n%s", e, traceback.format_exc())
             raise HTTPException(status_code=500, detail="Internal server error")
         except ContainerManagerError as e:
             logger.error(f"Container manager error: {e}")
@@ -65,7 +66,12 @@ async def getServerByUuid(uuid: UUID4, session: AsyncSession = Depends(getDBSess
 
 @router.get("/", summary="Get all servers", response_model=List[ServerResponseSchema])
 @errorHandler
-async def getAllServers(session: AsyncSession = Depends(getDBSession)):
+async def getAllServers(
+    # active: bool | None = Query(
+    #     default=None, description="Show active servers"
+    # ),
+    session: AsyncSession = Depends(getDBSession),
+    ):
     serverRepo = ServerRepository(session)
     servers = await serverRepo.getAllServers()
 
@@ -83,13 +89,13 @@ async def getAllServers(session: AsyncSession = Depends(getDBSession)):
 async def addServer(
     server: Annotated[ServerCreateSchema, Depends()],
     session: AsyncSession = Depends(getDBSession),
-    serverManager: ContainerManager = Depends(getManager),
+    containerManager: ContainerManager = Depends(getManager),
 ):
     try:
         service = ServerService(session)
         newServer = await service.addServer(server)
 
-        await serverManager.create_server(
+        await containerManager.create_server(
             uuid=newServer.uuid,
             port=newServer.port,
             rcon_port=newServer.rcon_port,
@@ -116,7 +122,7 @@ async def addServer(
 async def startServer(
     uuid: UUID4,
     session: AsyncSession = Depends(getDBSession),
-    serverManager: ContainerManager = Depends(getManager),
+    containerManager: ContainerManager = Depends(getManager),
 ):
     try:
         service = ServerRepository(session)
@@ -126,7 +132,7 @@ async def startServer(
             logger.error("Server not found")
             raise HTTPException(status_code=404, detail="Server not found")
 
-        await serverManager.start_server(uuid=server.uuid)
+        await containerManager.start_server(uuid=server.uuid)
         return Response(status_code=201)
     except ContainerStartError as e:
         logger.error(f"Server manager error while starting server: {e}")
@@ -147,7 +153,7 @@ async def startServer(
 async def restartServer(
     uuid: UUID4,
     session: AsyncSession = Depends(getDBSession),
-    serverManager: ContainerManager = Depends(getManager),
+    containerManager: ContainerManager = Depends(getManager),
 ):
     try:
         service = ServerRepository(session)
@@ -157,7 +163,7 @@ async def restartServer(
             logger.error("Server not found")
             raise HTTPException(status_code=404, detail="Server not found")
 
-        await serverManager.restart_server(uuid=server.uuid)
+        await containerManager.restart_server(uuid=server.uuid)
         return Response(status_code=201)
     except ServerRestartError as e:
         logger.error(f"Server manager error while starting server: {e}")
@@ -178,7 +184,7 @@ async def restartServer(
 async def stopServer(
     uuid: UUID4,
     session: AsyncSession = Depends(getDBSession),
-    serverManager: ContainerManager = Depends(getManager),
+    containerManager: ContainerManager = Depends(getManager),
 ):
     try:
         service = ServerRepository(session)
@@ -188,7 +194,7 @@ async def stopServer(
             logger.error("Server not found")
             raise HTTPException(status_code=404, detail="Server not found")
 
-        await serverManager.stop_server(uuid=server.uuid)
+        await containerManager.stop_server(uuid=server.uuid)
 
         return Response(status_code=201)
     except ContainerStopError as e:
@@ -210,7 +216,7 @@ async def stopServer(
 async def deleteServer(
     uuid: UUID4,
     session: AsyncSession = Depends(getDBSession),
-    serverManager: ContainerManager = Depends(getManager),
+    containerManager: ContainerManager = Depends(getManager),
 ):
     try:
         service = ServerRepository(session)
@@ -220,7 +226,7 @@ async def deleteServer(
             logger.warning(f"Server with UUID {uuid} not found")
             raise HTTPException(status_code=404, detail="Server not found")
 
-        await serverManager.remove_server(uuid=str(uuid))
+        await containerManager.remove_server(uuid=str(uuid))
         await service.deleteServerByUuid(uuid)
 
         return Response(status_code=204)
