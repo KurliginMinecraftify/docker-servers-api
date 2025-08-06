@@ -1,41 +1,89 @@
-from functools import lru_cache
+import logging
+from dataclasses import dataclass
+from os import getenv
+from typing import Literal
 
-from pydantic import Field
 from pydantic_settings import BaseSettings
 from sqlalchemy import URL
+from sqlalchemy.engine import URL
+
+LOG_DEFAULT_FORMAT = (
+    "[%(asctime)s.%(msecs)03d] %(module)10s:%(lineno)-3d %(levelname)-7s - %(message)s"
+)
+
+WORKER_LOG_DEFAULT_FORMAT = "[%(asctime)s.%(msecs)03d][%(processName)s] %(module)16s:%(lineno)-3d %(levelname)-7s - %(message)s"
 
 
-class Settings(BaseSettings):
-    POSTGRES_HOST: str = Field(..., env="POSTGRES_HOST")
-    POSTGRES_PORT: int = Field(..., env="POSTGRES_PORT")
-    POSTGRES_PASSWORD: str = Field(..., env="POSTGRES_PASSWORD")
-    POSTGRES_USERNAME: str = Field(..., env="POSTGRES_USERNAME")
-    POSTGRES_DB: str = Field(..., env="POSTGRES_DB")
+class LoggingConfig(BaseSettings):
+    log_level: Literal[
+        "debug",
+        "info",
+        "warning",
+        "error",
+        "critical",
+    ] = "info"
+    log_format: str = LOG_DEFAULT_FORMAT
+    date_format: str = "%Y-%m-%d %H:%M:%S"
 
-    SERVERS_DIR: str = Field("servers", env="SERVERS_DIR")
-    BASE_DIR: str = Field(..., env="BASE_DIR")
+    @property
+    def log_level_value(self) -> int:
+        return logging.getLevelNamesMapping()[self.log_level.upper()]
 
-    DOCKER_PATH: str = Field(..., env="DOCKER_PATH")
 
-    MINECRAFT_SERVER_MIN_PORT: int = Field(..., env="MINECRAFT_SERVER_MIN_PORT")
-    MINECRAFT_SERVER_MAX_PORT: int = Field(..., env="MINECRAFT_SERVER_MAX_PORT")
+@dataclass
+class DockerConfig:
+    server_dir: str = getenv("SERVERS_DIR", "")
+    base_dir: str = getenv("BASE_DIR", "minecraft_servers")
 
-    def get_db_url(self) -> str:
+    docker_path: str = getenv("DOCKER_PATH", "")
+
+    minecraft_server_min_port: int = int(getenv("MINECRAFT_SERVER_MIN_PORT", 25500))
+    minecraft_server_max_port: int = int(getenv("MINECRAFT_SERVER_MAX_PORT", 25600))
+
+
+@dataclass
+class DatabaseConfig:
+    """Database connection"""
+
+    name: str = getenv("POSTGRES_DATABASE", "database")
+    user: str = getenv("POSTGRES_USER", "user")
+    passwd: str = getenv("POSTGRES_PASSWORD", "password")
+    port: int = int(getenv("POSTGRES_PORT", 5432))
+    host: str = getenv("POSTGRES_HOST", "localhost")
+
+    driver: str = "asyncpg"
+    database_system: str = "postgresql"
+
+    def build_connection_str(self) -> str:
         return URL.create(
-            drivername="postgresql+asyncpg",
-            username=self.POSTGRES_USERNAME,
-            password=self.POSTGRES_PASSWORD,
-            host=self.POSTGRES_HOST,
-            port=self.POSTGRES_PORT,
-            database=self.POSTGRES_DB,
+            drivername=f"{self.database_system}+{self.driver}",
+            username=self.user,
+            database=self.name,
+            password=self.passwd,
+            port=self.port,
+            host=self.host,
         ).render_as_string(hide_password=False)
 
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        extra = "allow"
+
+@dataclass
+class RabbitMQConfig:
+    "RabbitMQ configuration"
+
+    host: str = getenv("RABBITMQ_HOST", "localhost")
+    port: int = int(getenv("RABBITMQ_PORT", 5672))
+    passwd: str | None = getenv("RABBITMQ_PASSWORD")
+    username: str | None = getenv("RABBITMQ_USERNAME")
+
+    url: str = f"amqp://{username}:{passwd}@{host}:{port}//"
+    log_format: str = WORKER_LOG_DEFAULT_FORMAT
 
 
-@lru_cache()
-def getSettings() -> Settings:
-    return Settings()
+@dataclass
+class Configuration:
+    db = DatabaseConfig()
+    rabbitmq = RabbitMQConfig()
+    docker = DockerConfig()
+    logging = LoggingConfig()
+
+
+conf = Configuration()

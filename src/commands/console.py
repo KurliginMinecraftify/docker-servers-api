@@ -25,3 +25,7 @@ class ConsoleManager:
 
     async def execute_command(self, command: CommandURLChoice, query: str):
         await self.send_rcon_command(f"{command.value} {query}")
+
+    async def get_players_list(self):
+        res = await self.send_rcon_command("list")
+        return res

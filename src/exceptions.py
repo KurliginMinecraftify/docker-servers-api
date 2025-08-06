@@ -1,6 +1,3 @@
-from fastapi import HTTPException
-
-
 class DatabaseError(Exception):
     pass
 

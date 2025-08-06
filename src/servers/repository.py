@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from src.entities import ServerModel
-from src.exceptions import ContainerCreateError, ContainerDeleteError, DatabaseError
+from src.exceptions import DatabaseError
 
 logger = logging.getLogger(__name__)
 

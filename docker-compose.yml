@@ -6,10 +6,11 @@ services:
     hostname: docker-api
     build:
       context: .
-      dockerfile: docker/Dockerfile
+      dockerfile: docker/mainDockerfile
 
     networks:
       - shared-network
+      - docker-api-network
     ports:
       - "8000:8000"
     env_file:
@@ -27,8 +28,56 @@ services:
     volumes:
       - ./minecraft_servers/:/app/minecraft_servers/
       - /var/run/docker.sock:/var/run/docker.sock
+  
+  docker-api-rabbitmq:
+    image: rabbitmq:3-management-alpine
+    hostname: docker-api-rabbitmq
+    container_name: docker-api-rabbitmq
+
+    env_file:
+      - .env
+
+    networks:
+      - docker-api-network
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    expose:
+      - 5672
+
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    volumes:
+      - docker-api-rabbitmq-data:/var/lib/docker-api-rabbitmq
+  
+  docker-api-taskiq:
+    container_name: taskiq-worker
+    hostname: taskiq-worker
+    build:
+      context: .
+      dockerfile: docker/taskiqDockerfile
+    
+    env_file:
+      - .env
+    environment:
+      - PYTHONPATH=/app
+    
+    volumes:
+      - .:/app
+    depends_on:
+      - docker-api-rabbitmq
+    networks:
+      - docker-api-network
 
 networks:
   shared-network:
     name: shared-network
     external: true
+  
+  docker-api-network:
+    name: docker-api-network
+    driver: bridge
+
+volumes:
+  docker-api-rabbitmq-data:

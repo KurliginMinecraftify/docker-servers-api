@@ -4,42 +4,28 @@ from aiodocker import Docker
 from aiodocker.containers import DockerContainer
 from aiodocker.exceptions import DockerError
 
-from src.configuration import getSettings
+from src.configuration import conf
 from src.exceptions import (
     ContainerDeleteError,
     ContainerManagerError,
     ContainerNotFoundError,
     ContainerStartError,
     ContainerStopError,
-    ImageNotFoundError,
 )
-from src.utils import (
-    IMAGE_NAME,
+from src.utils import get_container_config
+
+from .utils import (
     create_properties_from_template,
     ensure_server_dir,
-    get_container_config,
     remove_server_dir,
 )
 
 log = logging.getLogger(__name__)
 
-settings = getSettings()
-
 
 class ContainerManager:
     def __init__(self):
-        self.docker = Docker(url=settings.DOCKER_PATH)
-
-    async def ensure_image(self) -> None:
-        try:
-            log.info(f"Found image {IMAGE_NAME}")
-            await self.docker.images.inspect(IMAGE_NAME)
-        except DockerError:
-            try:
-                log.info(f"Pulling image {IMAGE_NAME}")
-                await self.docker.images.pull(IMAGE_NAME)
-            except DockerError as e:
-                raise ImageNotFoundError(f"Cannot pull image {IMAGE_NAME}") from e
+        self.docker = Docker(url=conf.docker.docker_path)
 
     async def create_server(
         self, uuid: str, port: int, rcon_port: int, rcon_password: str, version: str
@@ -59,7 +45,7 @@ class ContainerManager:
                 name=f"mc_{uuid}", config=container_config
             )
 
-            create_properties_from_template(
+            await create_properties_from_template(
                 server_name=str(uuid), rcon_password=rcon_password
             )
 
@@ -99,13 +85,13 @@ class ContainerManager:
         try:
             container = await self.docker.containers.get(f"mc_{uuid}")
             await container.delete(force=True)
+
+            remove_server_dir(uuid)
             log.info(f"Server '{uuid}' removed")
         except DockerError as e:
             if getattr(e, "status", None) == 404:
                 raise ContainerNotFoundError(f"Server '{uuid}' not found") from e
             raise ContainerDeleteError(f"Server '{uuid}' not found") from e
-
-        remove_server_dir(uuid)
 
     async def list_servers(self, active: bool = False) -> list[DockerContainer]:
         containers = await self.docker.containers.list(all=not active)

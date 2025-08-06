@@ -6,15 +6,16 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import UUID4
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.database import getDBSession
+from src.core.database import getDBSession
 from src.exceptions import (
     DatabaseError,
 )
 from src.servers.repository import ServerRepository
-from src.utils import update_properties
 
 from .models import CommandChoices, ServerPropertiesPatch
 from .service import ConsoleService
+
+# from .utils import update_properties
 
 logger = logging.getLogger(__name__)
 
@@ -35,9 +36,9 @@ def errorHandler(func):
 
 @errorHandler
 @router.post(
-    "/{uuid}/runCommand", 
+    "/{uuid}/runCommand",
     summary="Send RCON command to minecraft server",
-    status_code=201
+    status_code=201,
 )
 async def runCommand(
     uuid: UUID4,
@@ -60,13 +61,11 @@ async def runCommand(
 
 @errorHandler
 @router.patch(
-    "/{uuid}/updateProperties", 
-    summary="Update server properties file",
-    status_code=200
+    "/{uuid}/updateProperties", summary="Update server properties file", status_code=200
 )
 async def updateProperties(
     uuid: UUID4,
-    command: Annotated[ServerPropertiesPatch, Depends()],
+    commands: Annotated[ServerPropertiesPatch, Depends()],
     session: AsyncSession = Depends(getDBSession),
 ):
     serverRepo = ServerRepository(session)
@@ -76,6 +75,29 @@ async def updateProperties(
         logger.error("Server not found")
         raise HTTPException(status_code=404, detail="Server not found")
 
-    update_properties(uuid, command.model_dump(mode="json"))
+    consoleService = ConsoleService(server)
+    await consoleService.update_properties(commands)
 
     return Response(status_code=200)
+
+
+# @errorHandler
+# @router.get("/{uuid}/", summary="Get online/offline players")
+# async def getAllPlayers(
+#     uuid: UUID4,
+#     session: AsyncSession = Depends(getDBSession),
+#     ):
+#     serverRepo = ServerRepository(session)
+#     server = await serverRepo.getServerByUuid(uuid)
+
+#     if not server:
+#         logger.error("Server not found")
+#         raise HTTPException(status_code=404, detail="Server not found")
+
+#     consoleService = ConsoleService(server)
+#     players = await consoleService.get_online_player_names()
+
+#     if not players:
+#         logger.error("Players not found")
+#         raise HTTPException(status_code=404, detail="Players not found")
+#     return players

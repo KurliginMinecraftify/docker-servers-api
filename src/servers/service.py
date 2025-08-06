@@ -1,23 +1,19 @@
-from fastapi import HTTPException, Response
-from pydantic import UUID4
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.configuration import getSettings
+from src.configuration import conf
 from src.entities import ServerModel
 from src.utils import generate_password
 
 from .models import ServerCreateSchema
 from .repository import ServerRepository
 
-settings = getSettings()
-
 
 class ServerService:
     def __init__(self, session: AsyncSession):
         self.session = session
         self.serverRepo = ServerRepository(session)
-        self.min_port = settings.MINECRAFT_SERVER_MIN_PORT
-        self.max_port = settings.MINECRAFT_SERVER_MAX_PORT
+        self.min_port = conf.docker.minecraft_server_min_port
+        self.max_port = conf.docker.minecraft_server_max_port
 
     async def addServer(self, server: ServerCreateSchema) -> ServerModel:
         used_ports = await self.serverRepo.getAllServersPorts()
